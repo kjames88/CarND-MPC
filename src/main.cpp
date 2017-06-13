@@ -65,19 +65,83 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
   return result;
 }
 
+double cte_double(double x, double y, double y1, double m) {
+  // project the tangent back from (x,y1) to get intercept
+  // then compute the perpendicular distance from (x,y) to the tangent
+  double b = y1 - x * m;
+  return abs(m * x - y + b) / sqrt(pow(m,2) + 1);
+}
+
 int main() {
   uWS::Hub h;
 
   // MPC is initialized here!
   MPC mpc;
 
+  // simple tests
+  if (false) {
+    int iters = 100;
+    Eigen::VectorXd ptsx(3);
+    Eigen::VectorXd ptsy(3);
+    ptsx << 0, 10, 20;
+    ptsy << -5, 5, 15;    
+    auto coeffs = polyfit(ptsx, ptsy, 2);
+    std::cout << "coeffs: " << std::endl << coeffs << std::endl;    
+    double x = 5;
+    double y = 3;
+    double psi = M_PI/2;
+    double v = 10;
+    double cte = polyeval(coeffs, x) - y;  // approx
+    double epsi = psi - atan(coeffs[1]);
+    Eigen::VectorXd state(6);
+    state << x, y, psi, v, cte, epsi;
+
+    std::vector<double> x_vals = {state[0]};
+    std::vector<double> y_vals = {state[1]};
+    std::vector<double> psi_vals = {state[2]};
+    std::vector<double> v_vals = {state[3]};
+    std::vector<double> cte_vals = {state[4]};
+    std::vector<double> epsi_vals = {state[5]};
+    std::vector<double> delta_vals = {};
+    std::vector<double> a_vals = {};
+    
+    for (size_t i = 0; i < iters; i++) {
+      std::cout << "Iteration " << i << std::endl;
+      
+      auto vars = mpc.Solve(state, coeffs);
+      x_vals.push_back(vars[0]);
+      y_vals.push_back(vars[1]);
+      psi_vals.push_back(vars[2]);
+      v_vals.push_back(vars[3]);
+      cte_vals.push_back(vars[4]);
+      epsi_vals.push_back(vars[5]);
+
+      delta_vals.push_back(vars[6]);
+      a_vals.push_back(vars[7]);
+
+      state << vars[0], vars[1], vars[2], vars[3], vars[4], vars[5];
+      std::cout << "x = " << vars[0] << std::endl;
+      std::cout << "y = " << vars[1] << std::endl;
+      std::cout << "psi = " << vars[2] << std::endl;
+      std::cout << "v = " << vars[3] << std::endl;
+      std::cout << "cte = " << vars[4] << std::endl;
+      std::cout << "epsi = " << vars[5] << std::endl;
+      std::cout << "delta = " << vars[6] << std::endl;
+      std::cout << "a = " << vars[7] << std::endl;
+      std::cout << std::endl;
+
+    }
+  }
+  
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     string sdata = string(data).substr(0, length);
-    cout << sdata << endl;
+    if (false) {
+      cout << sdata << endl;
+    }
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
       string s = hasData(sdata);
       if (s != "") {
@@ -93,13 +157,36 @@ int main() {
           double v = j[1]["speed"];
 
           /*
-          * TODO: Calculate steering angle and throttle using MPC.
+          * Calculate steering angle and throttle using MPC.
           *
           * Both are in between [-1, 1].
           *
           */
-          double steer_value;
-          double throttle_value;
+          // Translate to vehicle coordinates first as per the Q&A
+          assert(ptsx.size() == ptsy.size());          
+          for (int i=0; i<ptsx.size(); i++) {
+            double x_t = ptsx.at(i) - px;
+            double y_t = ptsy.at(i) - py;
+            ptsx.at(i) = x_t * cos(-psi) - y_t * sin(-psi);
+            ptsy.at(i) = x_t * sin(-psi) + y_t * cos(-psi);
+          }
+          // px = 0, py = 0, psi = 0
+          Eigen::Map<Eigen::VectorXd> ptsx_t(ptsx.data(), 6);
+          Eigen::Map<Eigen::VectorXd> ptsy_t(ptsy.data(), 6);
+          auto coeffs = polyfit(ptsx_t, ptsy_t, 3);  // fit a line to the waypoints from the simulator
+          //double fprime = coeffs[1] + 2.0 * coeffs[2] * px + 3.0 * coeffs[3] * pow(px, 2);
+          double fprime = coeffs[1];  // px = 0 due to translation
+          double cte = cte_double(0, 0, polyeval(coeffs, 0), fprime);
+          double epsi = 0 - atan(fprime);
+          Eigen::VectorXd state(6);
+          state << 0, 0, 0, v, cte, epsi;
+          
+          auto vars = mpc.Solve(state, coeffs);
+          
+          // steering is reversed
+          
+          double steer_value = -1.0 * vars[0] / mpc.steering_range_;
+          double throttle_value = vars[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -111,6 +198,11 @@ int main() {
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
 
+          for (int i=2; i<vars.size()-1; i+=2) {
+            mpc_x_vals.push_back(vars.at(i));
+            mpc_y_vals.push_back(vars.at(i+1));
+          }
+
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
@@ -118,9 +210,22 @@ int main() {
           msgJson["mpc_y"] = mpc_y_vals;
 
           //Display the waypoints/reference line
+
+          
+          // TODO: plot the fitted line
+
+          
           vector<double> next_x_vals;
           vector<double> next_y_vals;
-
+          for (int i=0; i<ptsx.size(); i++) {
+            // double x_t = ptsx.at(i) - px;
+            // double y_t = ptsy.at(i) - py;
+            // next_x_vals.push_back(x_t * cos(-psi) - y_t * sin(-psi));
+            // next_y_vals.push_back(x_t * sin(-psi) + y_t * cos(-psi));
+            next_x_vals.push_back(ptsx.at(i));
+            next_y_vals.push_back(ptsy.at(i));
+          }
+          
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
 
@@ -129,7 +234,9 @@ int main() {
 
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          if (false) {
+            std::cout << msg << std::endl;
+          }
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
@@ -137,9 +244,18 @@ int main() {
           // Feel free to play around with this value but should be to drive
           // around the track with 100ms latency.
           //
+
+
+
+          
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          this_thread::sleep_for(chrono::milliseconds(100));
+
+          //this_thread::sleep_for(chrono::milliseconds(100));
+
+
+
+          
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {

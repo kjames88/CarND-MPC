@@ -1,3 +1,5 @@
+#define HAVE_CSTDDEF 1
+
 #include "MPC.h"
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
@@ -6,8 +8,17 @@
 using CppAD::AD;
 
 // timestep length and duration
-size_t N = 50;
-double dt = 0.05;  // 50ms
+size_t N = 25;
+double dt = 0.05;
+
+size_t MPC::x_start_ = 0;
+size_t MPC::y_start_ = x_start_ + N;
+size_t MPC::psi_start_ = y_start_ + N;
+size_t MPC::v_start_ = psi_start_ + N;
+size_t MPC::cte_start_ = v_start_ + N;
+size_t MPC::epsi_start_ = cte_start_ + N;
+size_t MPC::delta_start_ = epsi_start_ + N;
+size_t MPC::a_start_ = delta_start_ + N - 1;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -35,6 +46,7 @@ class FG_eval {
     //   for line with slope m, at point (x,y), d = abs(mx - y + b) / sqrt(m**2 + 1) (adapted from Anton p138)
     //   projecting back to x=0:  y0 - mx0 = b
     AD<double> b = f0 - (fprime0 * x0);
+    //std::cout << "x=" << x << " y=" << y << " x0=" << x0 << " f0=" << f0 << " fprime0=" << fprime0 << " b=" << b << std::endl;    
     return CppAD::abs(fprime0 * x - y + b) / CppAD::sqrt(CppAD::pow(fprime0,2) + 1);
   }
   
@@ -50,8 +62,8 @@ class FG_eval {
     // state (N terms)
     for (int i=0; i<N; i++) {
       // position and orientation errors
-      fg[0] += CppAD::pow(vars[MPC::cte_start_ + i], 2);
-      fg[0] += CppAD::pow(vars[MPC::epsi_start_ + i], 2);
+      fg[0] += 0.05 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
+      fg[0] += 50.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
       fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - speed_target, 2);
     }
@@ -66,7 +78,7 @@ class FG_eval {
     // change in control (N-2 terms)
     for (int i=0; i<N-2; i++) {
       // try to keep the changes in control inputs smooth
-      fg[0] += CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
+      fg[0] += 300.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
       fg[0] += CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
     }
 
@@ -98,8 +110,8 @@ class FG_eval {
       AD<double> cte1 = vars[MPC::cte_start_ + t];
       AD<double> epsi1 = vars[MPC::epsi_start_ + t];
       // 2nd degree polynomial fit
-      AD<double> f0 = coeffs[0] + (coeffs[1] * x0) + coeffs[2] * CppAD::pow(x0, 2);
-      AD<double> fprime0 = coeffs[1] + 2.0 * coeffs[2] * x0;
+      AD<double> f0 = coeffs[0] + (coeffs[1] * x0) + coeffs[2] * CppAD::pow(x0, 2) + coeffs[3] * CppAD::pow(x0, 3);
+      AD<double> fprime0 = coeffs[1] + 2.0 * coeffs[2] * x0 + 3.0 * coeffs[3] * CppAD::pow(x0, 2);
 
       // The basic form here is x1 - (x0 + v cos(psi) dt) = 0 due to the min/max constraints set to 0 in Solve()
       //   Offset of 1 due to fg[0] used for cost.  Another offset of 1 because the first step is populated above (current state)
@@ -118,14 +130,6 @@ class FG_eval {
 // MPC class definition implementation.
 //
 MPC::MPC() {
-  x_start_ = 0;
-  y_start_ = x_start_ + N;
-  psi_start_ = y_start_ + N;
-  v_start_ = psi_start_ + N;
-  cte_start_ = v_start_ + N;
-  epsi_start_ = cte_start_ + N;
-  delta_start_ = epsi_start_ + N;
-  a_start_ = delta_start_ + N - 1;
 }
 MPC::~MPC() {}
 
@@ -183,6 +187,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // steering
   double max_steering_angle = 25.0;  // degrees +/- steering range
   double range = (M_PI / 180.0) * max_steering_angle;
+  steering_range_ = range;
   for (int i=delta_start_; i<a_start_; i++) {
     vars_lowerbound[i] = -range;
     vars_upperbound[i] = range;
@@ -252,12 +257,22 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // Cost
   auto cost = solution.obj_value;
-  std::cout << "Cost " << cost << std::endl;
+  std::cout << "Cost " << cost << " cte " << solution.x[cte_start_ + 1] << " epsi " << solution.x[epsi_start_ + 1]
+            << " steer " << solution.x[delta_start_ + 1] << std::endl;
 
-  // TODO: Return the first actuator values. The variables can be accessed with
+  // Return the first actuator values. The variables can be accessed with
   // `solution.x[i]`.
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  return {};
+
+  vector<double> rval;
+  rval.push_back(solution.x[delta_start_ + 1]);
+  rval.push_back(solution.x[a_start_ + 1]);
+  for (int i=2; i<N; i++) {
+    rval.push_back(solution.x[x_start_ + i]);
+    rval.push_back(solution.x[y_start_ + i]);
+  }
+  
+  return rval;
 }
