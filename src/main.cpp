@@ -155,6 +155,8 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          double steering_angle = j[1]["steering_angle"];
+          double throttle = j[1]["throttle"];
 
           /*
           * Calculate steering angle and throttle using MPC.
@@ -210,21 +212,19 @@ int main() {
           msgJson["mpc_y"] = mpc_y_vals;
 
           //Display the waypoints/reference line
-
           
-          // TODO: plot the fitted line
-
-          
+          // plot the fitted line
           vector<double> next_x_vals;
           vector<double> next_y_vals;
-          for (int i=0; i<ptsx.size(); i++) {
-            // double x_t = ptsx.at(i) - px;
-            // double y_t = ptsy.at(i) - py;
-            // next_x_vals.push_back(x_t * cos(-psi) - y_t * sin(-psi));
-            // next_y_vals.push_back(x_t * sin(-psi) + y_t * cos(-psi));
-            next_x_vals.push_back(ptsx.at(i));
-            next_y_vals.push_back(ptsy.at(i));
+          for (int i=0; i<30; i++) {
+            double x = i * 1.5;
+            next_x_vals.push_back(x);
+            next_y_vals.push_back(polyeval(coeffs, x));
           }
+          // for (int i=0; i<ptsx.size(); i++) {
+          //   next_x_vals.push_back(ptsx.at(i));
+          //   next_y_vals.push_back(ptsy.at(i));
+          // }
           
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
@@ -245,16 +245,10 @@ int main() {
           // around the track with 100ms latency.
           //
 
-
-
-          
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
 
-          //this_thread::sleep_for(chrono::milliseconds(100));
-
-
-
+          this_thread::sleep_for(chrono::milliseconds(100));
           
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }

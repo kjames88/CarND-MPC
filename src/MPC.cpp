@@ -32,7 +32,7 @@ size_t MPC::a_start_ = delta_start_ + N - 1;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-const double speed_target = 50.0;
+const double speed_target = 40.0;
 
 class FG_eval {
  public:
@@ -62,24 +62,24 @@ class FG_eval {
     // state (N terms)
     for (int i=0; i<N; i++) {
       // position and orientation errors
-      fg[0] += 0.05 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
-      fg[0] += 50.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
+      fg[0] += 0.25 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
+      fg[0] += 100.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - speed_target, 2);
+      fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (speed_target), 2);
     }
 
     // control (N-1 terms)
     for (int i=0; i<N-1; i++) {
       // penalize sharp steering and high throttle/brake
-      fg[0] += CppAD::pow(vars[MPC::delta_start_ + i], 2);
+      fg[0] += 100.0 * CppAD::pow(vars[MPC::delta_start_ + i], 2);
       fg[0] += CppAD::pow(vars[MPC::a_start_ + i], 2);
     }
 
     // change in control (N-2 terms)
     for (int i=0; i<N-2; i++) {
       // try to keep the changes in control inputs smooth
-      fg[0] += 300.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
-      fg[0] += CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
+      fg[0] += 200.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
+      fg[0] += 100.0 * CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
     }
 
     // The first step constraint is the current state
@@ -109,7 +109,7 @@ class FG_eval {
       AD<double> v1 = vars[MPC::v_start_ + t];
       AD<double> cte1 = vars[MPC::cte_start_ + t];
       AD<double> epsi1 = vars[MPC::epsi_start_ + t];
-      // 2nd degree polynomial fit
+      // 3rd degree polynomial fit
       AD<double> f0 = coeffs[0] + (coeffs[1] * x0) + coeffs[2] * CppAD::pow(x0, 2) + coeffs[3] * CppAD::pow(x0, 3);
       AD<double> fprime0 = coeffs[1] + 2.0 * coeffs[2] * x0 + 3.0 * coeffs[3] * CppAD::pow(x0, 2);
 
