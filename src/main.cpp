@@ -210,15 +210,23 @@ int main() {
           }
 
           // dial back the speed when the projected angle of path is large
-          double s = 70.0;
-          if (max_angle < 0.25)
+          double s = 80.0;
+          if (max_angle < 0.15)
+            s = 80.0;
+          else if (max_angle < 0.25)
             s = 70.0;
-          else if (max_angle < 0.45)
+          else if (max_angle < 0.35)
+            s = 60.0;
+          else if (max_angle < 0.50)
             s = 50.0;
+          else if (max_angle < 0.65)
+            s = 45.0;
           else if (max_angle < 0.75)
             s = 40.0;
-          else if (max_angle < 1.0)
+          else if (max_angle < 0.90)
             s = 30.0;
+          else if (max_angle < 1.0)
+            s = 25.0;
           else
             max_angle = 20.0;
           MPC::set_speed_target(s);
