@@ -19,6 +19,7 @@ size_t MPC::cte_start_ = v_start_ + N;
 size_t MPC::epsi_start_ = cte_start_ + N;
 size_t MPC::delta_start_ = epsi_start_ + N;
 size_t MPC::a_start_ = delta_start_ + N - 1;
+double MPC::speed_target_ = 50.0;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -31,8 +32,6 @@ size_t MPC::a_start_ = delta_start_ + N - 1;
 //
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
-
-const double speed_target = 40.0;
 
 class FG_eval {
  public:
@@ -65,7 +64,7 @@ class FG_eval {
       fg[0] += 0.25 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
       fg[0] += 100.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (speed_target), 2);
+      fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
 
     // control (N-1 terms)
