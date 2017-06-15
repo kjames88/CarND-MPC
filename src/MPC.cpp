@@ -8,8 +8,8 @@
 using CppAD::AD;
 
 // timestep length and duration
-size_t N = 25;
-double dt = 0.05;
+size_t N = 10;
+double dt = 0.1;
 
 size_t MPC::x_start_ = 0;
 size_t MPC::y_start_ = x_start_ + N;
@@ -19,7 +19,7 @@ size_t MPC::cte_start_ = v_start_ + N;
 size_t MPC::epsi_start_ = cte_start_ + N;
 size_t MPC::delta_start_ = epsi_start_ + N;
 size_t MPC::a_start_ = delta_start_ + N - 1;
-double MPC::speed_target_ = 50.0;
+double MPC::speed_target_ = 100.0;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -57,14 +57,15 @@ class FG_eval {
     // the Solver function below.
 
     // fg[0] contains cost
-
+    fg[0] = 0.0;
+    
     // state (N terms)
     for (int i=0; i<N; i++) {
       // position and orientation errors
-      fg[0] += 0.1 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
-      fg[0] += CppAD::pow(vars[MPC::epsi_start_ + i], 2);
+      fg[0] += 2000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
+      fg[0] += 2000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
+      fg[0] += 0.05 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
 
     // control (N-1 terms)
@@ -77,7 +78,7 @@ class FG_eval {
     // change in control (N-2 terms)
     for (int i=0; i<N-2; i++) {
       // try to keep the changes in control inputs smooth
-      fg[0] += 500.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
+      fg[0] += 300.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
       fg[0] += 25.0 * CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
     }
 
@@ -120,7 +121,8 @@ class FG_eval {
       fg[1 + MPC::psi_start_ + t] = psi1 - (psi0 + (v0 / Lf) * delta0 * _dt);
       fg[1 + MPC::v_start_ + t] = v1 - (v0 + a0 * _dt);
       fg[1 + MPC::epsi_start_ + t] = epsi1 - ((psi0 - CppAD::atan(fprime0)) + (v0/Lf) * delta0 * _dt);
-      fg[1 + MPC::cte_start_ + t] = cte1 - cte(x0 + v0 * CppAD::cos(epsi0) * _dt, y0 + v0 * CppAD::sin(epsi0), x0, f0, fprime0);
+      //fg[1 + MPC::cte_start_ + t] = cte1 - cte(x0 + v0 * CppAD::cos(epsi0) * _dt, y0 + v0 * CppAD::sin(epsi0), x0, f0, fprime0);
+      fg[1 + MPC::cte_start_ + t] = cte1 - ((f0 - y0) + v0 * CppAD::sin(epsi0) * _dt);
     }
   }
 };
@@ -257,7 +259,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Cost
   auto cost = solution.obj_value;
   std::cout << "Cost " << cost << " cte " << solution.x[cte_start_ + 1] << " epsi " << solution.x[epsi_start_ + 1]
-            << " steer " << solution.x[delta_start_ + 1] << std::endl;
+            << " steer " << solution.x[delta_start_] << " throttle " << solution.x[a_start_] << std::endl;
 
   // Return the first actuator values. The variables can be accessed with
   // `solution.x[i]`.
@@ -266,9 +268,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // creates a 2 element double vector.
 
   vector<double> rval;
-  rval.push_back(solution.x[delta_start_ + 1]);
-  rval.push_back(solution.x[a_start_ + 1]);
-  for (int i=2; i<N; i++) {
+  rval.push_back(solution.x[delta_start_]);
+  rval.push_back(solution.x[a_start_]);
+  for (int i=1; i<N-1; i++) {
     rval.push_back(solution.x[x_start_ + i]);
     rval.push_back(solution.x[y_start_ + i]);
   }

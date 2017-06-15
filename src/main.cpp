@@ -178,7 +178,8 @@ int main() {
           auto coeffs = polyfit(ptsx_t, ptsy_t, 3);  // fit a line to the waypoints from the simulator
           //double fprime = coeffs[1] + 2.0 * coeffs[2] * px + 3.0 * coeffs[3] * pow(px, 2);
           double fprime = coeffs[1];  // px = 0 due to translation
-          double cte = cte_double(0, 0, polyeval(coeffs, 0), fprime);
+          //double cte = cte_double(0, 0, polyeval(coeffs, 0), fprime);
+          double cte = polyeval(coeffs, 0);  // approx
           double epsi = 0 - atan(fprime);
           Eigen::VectorXd state(6);
           state << 0, 0, 0, v, cte, epsi;
@@ -200,37 +201,44 @@ int main() {
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
 
-          double max_angle = 0.0;
           for (int i=2; i<vars.size()-1; i+=2) {
             mpc_x_vals.push_back(vars.at(i));
             mpc_y_vals.push_back(vars.at(i+1));
-            double t = atan2(vars.at(i+1), vars.at(i));
-            if (abs(t) > max_angle)
-              max_angle = abs(t);
+
+            // if using this, use fprime0
+            
+            //double t = atan2(vars.at(i+1), vars.at(i));
+            //if (abs(t) > max_angle)
+            //  max_angle = abs(t);
           }
 
-          // dial back the speed when the projected angle of path is large
-          double s = 80.0;
-          if (max_angle < 0.15)
-            s = 80.0;
-          else if (max_angle < 0.25)
-            s = 70.0;
-          else if (max_angle < 0.35)
-            s = 60.0;
-          else if (max_angle < 0.50)
-            s = 50.0;
-          else if (max_angle < 0.65)
-            s = 45.0;
-          else if (max_angle < 0.75)
-            s = 40.0;
-          else if (max_angle < 0.90)
-            s = 30.0;
-          else if (max_angle < 1.0)
-            s = 25.0;
-          else
-            max_angle = 20.0;
-          MPC::set_speed_target(s);
-          std::cout << "max angle = " << max_angle << " set speed " << s << std::endl;
+          if (0) {
+            double max_angle = 0.0;
+          
+            // dial back the speed when the projected angle of path is large
+            double s = 80.0;
+            if (max_angle < 0.15)
+              s = 80.0;
+            else if (max_angle < 0.25)
+              s = 70.0;
+            else if (max_angle < 0.35)
+              s = 60.0;
+            else if (max_angle < 0.50)
+              s = 50.0;
+            else if (max_angle < 0.65)
+              s = 45.0;
+            else if (max_angle < 0.75)
+              s = 40.0;
+            else if (max_angle < 0.90)
+              s = 30.0;
+            else if (max_angle < 1.0)
+              s = 25.0;
+            else
+              max_angle = 20.0;
+            MPC::set_speed_target(s);
+          }
+          
+          //std::cout << "max angle = " << max_angle << " set speed " << s << std::endl;
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
@@ -275,7 +283,9 @@ int main() {
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
 
-          this_thread::sleep_for(chrono::milliseconds(100));
+          
+          //this_thread::sleep_for(chrono::milliseconds(100));
+
           
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
