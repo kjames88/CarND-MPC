@@ -62,10 +62,10 @@ class FG_eval {
     // state (N terms)
     for (int i=0; i<N; i++) {
       // position and orientation errors
-      fg[0] += 5000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
-      fg[0] += 5000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
+      fg[0] += 3000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
+      fg[0] += 3000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += 0.25 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
+      fg[0] += 0.1 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
 
     // control (N-1 terms)
