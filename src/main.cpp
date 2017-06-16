@@ -176,13 +176,30 @@ int main() {
           Eigen::Map<Eigen::VectorXd> ptsx_t(ptsx.data(), 6);
           Eigen::Map<Eigen::VectorXd> ptsy_t(ptsy.data(), 6);
           auto coeffs = polyfit(ptsx_t, ptsy_t, 3);  // fit a line to the waypoints from the simulator
-          //double fprime = coeffs[1] + 2.0 * coeffs[2] * px + 3.0 * coeffs[3] * pow(px, 2);
-          double fprime = coeffs[1];  // px = 0 due to translation
-          //double cte = cte_double(0, 0, polyeval(coeffs, 0), fprime);
-          double cte = polyeval(coeffs, 0);  // approx
-          double epsi = 0 - atan(fprime);
+
+          // Compute where the current steering and throttle will take the car and velocity
+          //   during the 100ms blackout period below to the solver is working from the correct
+          //   starting state.
+
+          double dt = 0.1;  // 100ms
+          double Lf = 2.67;
+          steering_angle *= -1.0;
+          double psi0 = 0;
+          psi = psi0 + (v / Lf) * steering_angle * dt;
+          px = v * dt;
+          py = 0;
+          v += throttle * dt;
+          // v mph does not change with a in [-1..1]
+          double fprime0 = coeffs[1];
+          double fprime = coeffs[1] + 2.0 * coeffs[2] * px + 3.0 * coeffs[3] * pow(px, 2);
+          double epsi0 = psi0 - atan(fprime0);
+          double cte = (polyeval(coeffs, px) - py) + v * sin(epsi0) * dt;  // approx
+          double epsi = psi - (atan(fprime) + (v / Lf) * steering_angle * dt);
+
+          std::cout << "px=" << px << " py=" << py << " psi=" << psi << " v=" << v << " cte=" << cte << " epsi=" << epsi << std::endl;
+          
           Eigen::VectorXd state(6);
-          state << 0, 0, 0, v, cte, epsi;
+          state << px, py, psi, v, cte, epsi;
           
           auto vars = mpc.Solve(state, coeffs);
           
@@ -204,41 +221,7 @@ int main() {
           for (int i=2; i<vars.size()-1; i+=2) {
             mpc_x_vals.push_back(vars.at(i));
             mpc_y_vals.push_back(vars.at(i+1));
-
-            // if using this, use fprime0
-            
-            //double t = atan2(vars.at(i+1), vars.at(i));
-            //if (abs(t) > max_angle)
-            //  max_angle = abs(t);
           }
-
-          if (0) {
-            double max_angle = 0.0;
-          
-            // dial back the speed when the projected angle of path is large
-            double s = 80.0;
-            if (max_angle < 0.15)
-              s = 80.0;
-            else if (max_angle < 0.25)
-              s = 70.0;
-            else if (max_angle < 0.35)
-              s = 60.0;
-            else if (max_angle < 0.50)
-              s = 50.0;
-            else if (max_angle < 0.65)
-              s = 45.0;
-            else if (max_angle < 0.75)
-              s = 40.0;
-            else if (max_angle < 0.90)
-              s = 30.0;
-            else if (max_angle < 1.0)
-              s = 25.0;
-            else
-              max_angle = 20.0;
-            MPC::set_speed_target(s);
-          }
-          
-          //std::cout << "max angle = " << max_angle << " set speed " << s << std::endl;
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
@@ -256,17 +239,12 @@ int main() {
             next_x_vals.push_back(x);
             next_y_vals.push_back(polyeval(coeffs, x));
           }
-          // for (int i=0; i<ptsx.size(); i++) {
-          //   next_x_vals.push_back(ptsx.at(i));
-          //   next_y_vals.push_back(ptsy.at(i));
-          // }
           
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
-
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           if (false) {
@@ -282,10 +260,8 @@ int main() {
 
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-
           
-          //this_thread::sleep_for(chrono::milliseconds(100));
-
+          this_thread::sleep_for(chrono::milliseconds(100));
           
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
