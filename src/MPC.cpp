@@ -9,7 +9,7 @@ using CppAD::AD;
 
 // timestep length and duration
 size_t N = 10;
-double dt = 0.1;
+double dt = 0.15;
 
 size_t MPC::x_start_ = 0;
 size_t MPC::y_start_ = x_start_ + N;
@@ -19,7 +19,7 @@ size_t MPC::cte_start_ = v_start_ + N;
 size_t MPC::epsi_start_ = cte_start_ + N;
 size_t MPC::delta_start_ = epsi_start_ + N;
 size_t MPC::a_start_ = delta_start_ + N - 1;
-double MPC::speed_target_ = 50.0;
+double MPC::speed_target_ = 80.0;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -62,16 +62,16 @@ class FG_eval {
     // state (N terms)
     for (int i=0; i<N; i++) {
       // position and orientation errors
-      fg[0] += 5.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
-      fg[0] += 5.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
+      fg[0] += 10000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
+      fg[0] += 10000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
+      fg[0] += 0.2 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
 
     // control (N-1 terms)
     for (int i=0; i<N-1; i++) {
       // penalize sharp steering and high throttle/brake
-      fg[0] += 200.0 * CppAD::pow(vars[MPC::delta_start_ + i], 2);
+      fg[0] += 10.0 * CppAD::pow(vars[MPC::delta_start_ + i], 2);
       fg[0] += 5.0 * CppAD::pow(vars[MPC::a_start_ + i], 2);
     }
 
