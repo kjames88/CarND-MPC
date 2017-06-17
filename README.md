@@ -14,14 +14,14 @@ The simulator provides a series of landmark points for the vehicle to follow.  A
 
 ####Equations
 
-x1 = x0 + v0 * cos(psi0) * dt
-y1 = y0 + v0 * sin(psi0) * dt
-psi1 = psi0 + (v0 / Lf) * delta0 * dt
-v1 = v0 + a0 * dt
-cte1 = f(x0) - y0 + v0 * sin(psi0) * dt
-epsi1 = psi0 - arctan(f'(x0)) + (v / Lf) * delta0 * dt
+* x1 = x0 + v0 * cos(psi0) * dt
+* y1 = y0 + v0 * sin(psi0) * dt
+* psi1 = psi0 + (v0 / Lf) * delta0 * dt
+* v1 = v0 + a0 * dt
+* cte1 = f(x0) - y0 + v0 * sin(psi0) * dt
+* epsi1 = psi0 - arctan(f'(x0)) + (v / Lf) * delta0 * dt
 
-The first two equations are position, followed by yaw angle, velocity.  The last two are errors:  Cross Track Error, and error in yaw angle. 
+The first two equations are position, followed by yaw angle, velocity.  The last two are errors:  Cross Track Error, and error in yaw angle. Delta is the steering angle in radians and Lf is the vehicle length from center of gravity (this affects the degree of angular change caused by steering).
 
 ####Latency
 
@@ -32,6 +32,8 @@ This projection alone did not work acceptably:  the vehicle started oscillating 
 ###Solver Detail and Issues
 
 The solver relies on a cost function to guide its solution.  I found cost to be a very tricky balancing act.  To the first order the cost should account for requirements such as cte, epsi, speed accuracy, actuator values, and actuator value derivatives for smoothness.  These terms should then be weighted based on relative importance and also relative magnitude.  From there, however, I found it not challenging to get into unstable circumstances in which the solver produces a loop or a bowtie path that can't be explained looking at the target line.
+
+Instead of drawing bowtie paths, and sometimes swerving to certain doom, I am filtering out solutions with very high cost and falling back on previous control values.  When this happens, the green line points are not drawn and a log message indicates the solution was dropped.  This approach assumes a failure due to local minimum, and in fact I observe that the associated results suddenly flip the throttle from near full positive to -1.  The approach is also limited in that the car will crash if multiple sequential failures occur.  So far I have observed only occasional back to back failures and the car has stayed on course.
 
 ###Test Results
 

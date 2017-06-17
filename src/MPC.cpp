@@ -11,7 +11,7 @@
 using CppAD::AD;
 
 // timestep length and duration
-size_t N = 15;
+size_t N = 20;
 double dt = 0.1;
 
 size_t MPC::x_start_ = 0;
@@ -65,10 +65,10 @@ class FG_eval {
     // state (N terms)
     for (int i=0; i<N; i++) {
       // position and orientation errors
-      fg[0] += 2000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
-      fg[0] += 2000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
+      fg[0] += 5000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
+      fg[0] += 5000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += 0.15 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
+      fg[0] += 0.35 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
 
     // control (N-1 terms)
@@ -81,8 +81,8 @@ class FG_eval {
     // change in control (N-2 terms)
     for (int i=0; i<N-2; i++) {
       // try to keep the changes in control inputs smooth
-      fg[0] += 500.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
-      fg[0] += 25.0 * CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
+      fg[0] += 1000.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
+      fg[0] += 1000.0 * CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
     }
 
     // The first step constraint is the current state
@@ -267,6 +267,10 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // Cost
   auto cost = solution.obj_value;
+
+  // Check that the cost doesn't imply the solver went off in space
+  ok &= (cost < 1.0e+06);
+    
   std::cout << "OK " << ok << " Cost " << cost << " cte " << solution.x[cte_start_ + 1] << " epsi " << solution.x[epsi_start_ + 1]
             << " steer " << solution.x[delta_start_] << " throttle " << solution.x[a_start_] << std::endl;
 
@@ -277,11 +281,24 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // creates a 2 element double vector.
 
   vector<double> rval;
-  rval.push_back((solution.x[delta_start_] + solution.x[delta_start_ + 1]) / 2.0);
-  rval.push_back((solution.x[a_start_] + solution.x[a_start_ + 1]) / 2.0);
-  for (int i=1; i<N-1; i++) {
-    rval.push_back(solution.x[x_start_ + i]);
-    rval.push_back(solution.x[y_start_ + i]);
+
+  if (ok) {
+    double delta = (solution.x[delta_start_] + solution.x[delta_start_ + 1]) / 2.0;
+    double a = (solution.x[a_start_] + solution.x[a_start_ + 1]) / 2.0;
+    rval.push_back(delta);
+    rval.push_back(a);
+    for (int i=1; i<N-1; i++) {
+      rval.push_back(solution.x[x_start_ + i]);
+      rval.push_back(solution.x[y_start_ + i]);
+    }
+    
+    delta_q_ = delta;
+    a_q_ = a;
+  } else {
+    // use the previous control values
+    std::cout << ">>> Ignore solver and keep previous course" << std::endl;
+    rval.push_back(delta_q_);
+    rval.push_back(a_q_);
   }
   
   return rval;
