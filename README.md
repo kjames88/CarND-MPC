@@ -37,4 +37,12 @@ Instead of drawing bowtie paths, and sometimes swerving to certain doom, I am fi
 
 ###Test Results
 
+Using simulator v1.4 I have run multiple laps with a maximum observed speed of 92MPH.  The car remains on the track, although it does touch paint sometimes.  Except in case of a double failure as mentioned above, the car should stay off the concrete shoulders.
+
+![First turn](images/screenshot1.png "First Turn")
+![Second turn](images/screenshot2.png "Second Turn")
+![Third turn](images/screenshot3.png "Third Turn")
+![Fourth turn](images/screenshot4.png "Fourth Turn")
+
+
 

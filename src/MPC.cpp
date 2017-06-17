@@ -68,7 +68,7 @@ class FG_eval {
       fg[0] += 5000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
       fg[0] += 5000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += 0.35 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
+      fg[0] += 0.25 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
 
     // control (N-1 terms)
