@@ -9,7 +9,7 @@ using CppAD::AD;
 
 // timestep length and duration
 size_t N = 10;
-double dt = 0.15;
+double dt = 0.1;
 
 size_t MPC::x_start_ = 0;
 size_t MPC::y_start_ = x_start_ + N;
@@ -268,8 +268,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // creates a 2 element double vector.
 
   vector<double> rval;
-  rval.push_back(solution.x[delta_start_]);
-  rval.push_back(solution.x[a_start_]);
+  rval.push_back((solution.x[delta_start_] + solution.x[delta_start_ + 1]) / 2.0);
+  rval.push_back((solution.x[a_start_] + solution.x[a_start_ + 1]) / 2.0);
   for (int i=1; i<N-1; i++) {
     rval.push_back(solution.x[x_start_ + i]);
     rval.push_back(solution.x[y_start_ + i]);
