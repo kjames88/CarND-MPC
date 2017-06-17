@@ -19,7 +19,7 @@ size_t MPC::cte_start_ = v_start_ + N;
 size_t MPC::epsi_start_ = cte_start_ + N;
 size_t MPC::delta_start_ = epsi_start_ + N;
 size_t MPC::a_start_ = delta_start_ + N - 1;
-double MPC::speed_target_ = 100.0;
+double MPC::speed_target_ = 120.0;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -71,14 +71,14 @@ class FG_eval {
     // control (N-1 terms)
     for (int i=0; i<N-1; i++) {
       // penalize sharp steering and high throttle/brake
-      fg[0] += 10.0 * CppAD::pow(vars[MPC::delta_start_ + i], 2);
+      fg[0] += 250.0 * CppAD::pow(vars[MPC::delta_start_ + i], 2);
       fg[0] += 5.0 * CppAD::pow(vars[MPC::a_start_ + i], 2);
     }
 
     // change in control (N-2 terms)
     for (int i=0; i<N-2; i++) {
       // try to keep the changes in control inputs smooth
-      fg[0] += 1000.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
+      fg[0] += 2000.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
       fg[0] += 25.0 * CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
     }
 
@@ -243,7 +243,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          0.5\n";
+  options += "Numeric max_cpu_time          1.0\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
