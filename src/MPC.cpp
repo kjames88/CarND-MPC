@@ -3,12 +3,15 @@
 #include "MPC.h"
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
+#include <ctime>
+#include <ratio>
+#include <chrono>
 #include "Eigen-3.3/Eigen/Core"
 
 using CppAD::AD;
 
 // timestep length and duration
-size_t N = 10;
+size_t N = 15;
 double dt = 0.1;
 
 size_t MPC::x_start_ = 0;
@@ -19,7 +22,7 @@ size_t MPC::cte_start_ = v_start_ + N;
 size_t MPC::epsi_start_ = cte_start_ + N;
 size_t MPC::delta_start_ = epsi_start_ + N;
 size_t MPC::a_start_ = delta_start_ + N - 1;
-double MPC::speed_target_ = 120.0;
+double MPC::speed_target_ = 100.0;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -62,23 +65,23 @@ class FG_eval {
     // state (N terms)
     for (int i=0; i<N; i++) {
       // position and orientation errors
-      fg[0] += 2500.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
-      fg[0] += 2500.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
+      fg[0] += 2000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
+      fg[0] += 2000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
+      fg[0] += 0.15 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
 
     // control (N-1 terms)
     for (int i=0; i<N-1; i++) {
       // penalize sharp steering and high throttle/brake
-      fg[0] += 250.0 * CppAD::pow(vars[MPC::delta_start_ + i], 2);
+      fg[0] += 10.0 * CppAD::pow(vars[MPC::delta_start_ + i], 2);
       fg[0] += 5.0 * CppAD::pow(vars[MPC::a_start_ + i], 2);
     }
 
     // change in control (N-2 terms)
     for (int i=0; i<N-2; i++) {
       // try to keep the changes in control inputs smooth
-      fg[0] += 2000.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
+      fg[0] += 500.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
       fg[0] += 25.0 * CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
     }
 
@@ -243,22 +246,28 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          1.0\n";
+  options += "Numeric max_cpu_time          0.5\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
 
+  //chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
+  
   // solve the problem
   CppAD::ipopt::solve<Dvector, FG_eval>(
       options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
       constraints_upperbound, fg_eval, solution);
 
+  //chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
+  //chrono::duration<double> d = chrono::duration_cast<chrono::duration<double>> (t2 - t1);
+  //std::cout << "solve time " << d.count() << std::endl;
+  
   // Check some of the solution values
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
 
   // Cost
   auto cost = solution.obj_value;
-  std::cout << "Cost " << cost << " cte " << solution.x[cte_start_ + 1] << " epsi " << solution.x[epsi_start_ + 1]
+  std::cout << "OK " << ok << " Cost " << cost << " cte " << solution.x[cte_start_ + 1] << " epsi " << solution.x[epsi_start_ + 1]
             << " steer " << solution.x[delta_start_] << " throttle " << solution.x[a_start_] << std::endl;
 
   // Return the first actuator values. The variables can be accessed with

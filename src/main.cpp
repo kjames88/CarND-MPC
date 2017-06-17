@@ -196,7 +196,7 @@ int main() {
           double cte = (polyeval(coeffs, px) - py) + v * sin(epsi0) * dt;  // approx
           double epsi = psi - (atan(fprime) + (v / Lf) * steering_angle * dt);
 
-          std::cout << "===> px=" << px << " py=" << py << " psi=" << psi << " v=" << v << " cte=" << cte << " epsi=" << epsi << std::endl;
+          //std::cout << "===> px=" << px << " py=" << py << " psi=" << psi << " v=" << v << " cte=" << cte << " epsi=" << epsi << std::endl;
           
           Eigen::VectorXd state(6);
           state << px, py, psi, v, cte, epsi;
