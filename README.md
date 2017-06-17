@@ -6,11 +6,27 @@ The goal of this project was to build a Motion Predictive Controller (MPC).  Thi
 
 ###Functional Description
 
-A kinematic vehicle model is used.  This model accounts for position, angle, velocity, and basic motion using a bicycle model, but does not include such factors as tire grip, slip angle, etc.
+A kinematic vehicle model is used.  This model accounts for position, angle, velocity, and basic motion using a bicycle model, but does not include such factors as tire grip, slip angle, etc.  A sophisticated third-party solver is used to apply a sequence of (N-1) actuator inputs, resulting in vehicle motion and creating a path.  The solver attempts to minimize a cost function while meeting constraints that determine the step-by-step state of the solution.  In particular, the constraints model the motion, effectively inducing the equations shown below.  The cost function guides the tradeoffs made:  the solver can use more or less throttle and steering angle at each timestep - should it steer sharper at high speed, follow a smoother line, etc.
+
+I use dt = 100ms and N = 15.  I started out using dt = 50ms and N = 25, and I have used dt up 150ms and N down to 10 successfully.  I find that N > 10 results in higher speed while N > 20 with dt = 100ms results in a very long projected path.  100ms is compatible with the latency in the control loop, and a shorter dt does not appear necessary.  150ms places the next point somewhat far in front of the vehicle and I preferred 100ms.
 
 ####Waypoints
 
 The simulator provides a series of landmark points for the vehicle to follow.  A 3rd degree polynomial is fitted to these points and this function forms the goal for the solver used to produce a solution.  Using the current position and the set of equation describing each forward step, the solver decides a set of positions and control inputs forming the path in front of the vehicle.  Only the first control inputs are used since the actual vehicle motion would unfold differently than that predicted.  At each timestep a new path is computed and the process repeats.
+
+####State
+
+* x:  position
+* y:  position
+* psi:  yaw angle
+* v:  velocity
+* cte:  cross track error
+* epsi: yaw angle error
+
+####Actuators
+
+* delta:  steering angle (radians)
+* a:  acceleration
 
 ####Equations
 
@@ -22,6 +38,8 @@ The simulator provides a series of landmark points for the vehicle to follow.  A
 * epsi1 = psi0 - arctan(f'(x0)) + (v / Lf) * delta0 * dt
 
 The first two equations are position, followed by yaw angle, velocity.  The last two are errors:  Cross Track Error, and error in yaw angle. Delta is the steering angle in radians and Lf is the vehicle length from center of gravity (this affects the degree of angular change caused by steering).
+
+Initially, I had tried to compute a more accurate cross track error than assuming simple horizontal motion as in the lecture and Q&A.  Using the approximate method worked far better.  It seemed as though cte and epsi were working against each other and resulting in very slight steering angles.
 
 ####Latency
 
@@ -37,7 +55,7 @@ Instead of drawing bowtie paths, and sometimes swerving to certain doom, I am fi
 
 ###Test Results
 
-Using simulator v1.4 I have run multiple laps with a maximum observed speed of 92MPH.  The car remains on the track, although it does touch paint sometimes.  Except in case of a double failure as mentioned above, the car should stay off the concrete shoulders.
+Using simulator v1.4 I have run multiple laps with a maximum observed speed of 83MPH.  The car remains on the track, although it does touch paint sometimes.  Except in case of a double failure as mentioned above, the car should stay off the concrete shoulders.  With some parameter settings, the car exceeds 100MPH while remaining on the track, but I had more instability issues as described above.
 
 ![First turn](images/screenshot1.png "First Turn")
 ![Second turn](images/screenshot2.png "Second Turn")

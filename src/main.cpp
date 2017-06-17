@@ -189,7 +189,7 @@ int main() {
           px = v * dt;
           py = 0;
           v += throttle * dt;
-          // v mph does not change with a in [-1..1]
+
           double fprime0 = coeffs[1];
           double fprime = coeffs[1] + 2.0 * coeffs[2] * px + 3.0 * coeffs[3] * pow(px, 2);
           double epsi0 = psi0 - atan(fprime0);

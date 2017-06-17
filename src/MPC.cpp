@@ -11,7 +11,7 @@
 using CppAD::AD;
 
 // timestep length and duration
-size_t N = 20;
+size_t N = 15;
 double dt = 0.1;
 
 size_t MPC::x_start_ = 0;
@@ -48,7 +48,6 @@ class FG_eval {
     //   for line with slope m, at point (x,y), d = abs(mx - y + b) / sqrt(m**2 + 1) (adapted from Anton p138)
     //   projecting back to x=0:  y0 - mx0 = b
     AD<double> b = f0 - (fprime0 * x0);
-    //std::cout << "x=" << x << " y=" << y << " x0=" << x0 << " f0=" << f0 << " fprime0=" << fprime0 << " b=" << b << std::endl;    
     return CppAD::abs(fprime0 * x - y + b) / CppAD::sqrt(CppAD::pow(fprime0,2) + 1);
   }
   
@@ -68,7 +67,7 @@ class FG_eval {
       fg[0] += 5000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
       fg[0] += 5000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
-      fg[0] += 0.25 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
+      fg[0] += CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
 
     // control (N-1 terms)
