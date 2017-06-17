@@ -8,7 +8,7 @@
 using CppAD::AD;
 
 // timestep length and duration
-size_t N = 10;
+size_t N = 15;
 double dt = 0.1;
 
 size_t MPC::x_start_ = 0;
@@ -19,7 +19,7 @@ size_t MPC::cte_start_ = v_start_ + N;
 size_t MPC::epsi_start_ = cte_start_ + N;
 size_t MPC::delta_start_ = epsi_start_ + N;
 size_t MPC::a_start_ = delta_start_ + N - 1;
-double MPC::speed_target_ = 80.0;
+double MPC::speed_target_ = 100.0;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -62,8 +62,8 @@ class FG_eval {
     // state (N terms)
     for (int i=0; i<N; i++) {
       // position and orientation errors
-      fg[0] += 3000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
-      fg[0] += 3000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
+      fg[0] += 2000.0 * CppAD::pow(vars[MPC::cte_start_ + i], 2);
+      fg[0] += 2000.0 * CppAD::pow(vars[MPC::epsi_start_ + i], 2);
       // speed regulation
       fg[0] += 0.1 * CppAD::pow(vars[MPC::v_start_ + i] - AD<double> (MPC::speed_target_), 2);
     }
@@ -78,7 +78,7 @@ class FG_eval {
     // change in control (N-2 terms)
     for (int i=0; i<N-2; i++) {
       // try to keep the changes in control inputs smooth
-      fg[0] += 1000.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
+      fg[0] += 500.0 * CppAD::pow(vars[MPC::delta_start_ + i + 1] - vars[MPC::delta_start_ + i], 2);
       fg[0] += 25.0 * CppAD::pow(vars[MPC::a_start_ + i + 1] - vars[MPC::a_start_ + i], 2);
     }
 
